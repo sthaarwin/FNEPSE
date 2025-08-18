@@ -14,7 +14,7 @@ def download_data(out_dir="data/raw/stock-data"):
     print(f"Found {len(txt_files)} txt files")
     
     processed = 0
-    for f in txt_files[:10]:
+    for f in txt_files[:30]:  
         try:
             df = pd.read_csv(f, sep=',')
             required_cols = ['Open', 'High', 'Low', 'Close']
