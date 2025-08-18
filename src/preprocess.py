@@ -4,9 +4,13 @@ import os
 from sklearn.preprocessing import MinMaxScaler, LabelEncoder
 from pathlib import Path
 
-def preprocess_patterns(csv_path="data/raw/merged-candle-stick-patterns.csv", lookback = 10):
+def preprocess_patterns(csv_path="data/raw/merged-stock-data.csv", lookback = 10):
     #load the dataset
     df = pd.read_csv(csv_path)
+    
+    print(f"Loaded dataset with {len(df)} rows")
+    print(f"Unique patterns: {df['pattern'].nunique()}")
+    print(f"Pattern distribution:\n{df['pattern'].value_counts()}")
 
     #features OHLCV
     feature_cols = ["open", "high", "low", "close"]
@@ -41,7 +45,7 @@ def preprocess_patterns(csv_path="data/raw/merged-candle-stick-patterns.csv", lo
 
     #save
     Path("data/preprocessed").mkdir(parents=True, exist_ok=True)
-    np.savez("data/preprocessed/candle_dataset.npz",
+    np.savez("data/preprocessed/stock_dataset.npz",
              x_train = x_train, y_train = y_train,
              x_val = x_val, y_val = y_val,
              x_test = x_test, y_test = y_test,
