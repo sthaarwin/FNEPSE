@@ -6,3 +6,4 @@ tensorflow
 keras
 yfinance
 pyyaml
+kagglehub
