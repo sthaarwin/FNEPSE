@@ -159,9 +159,94 @@
             </div>
             
             <div class="p-4">
-                <!-- Input Section -->
+                <!-- Stock Recommendations Section -->
                 <div class="data-input-section">
-                    <h3><i class="fas fa-database"></i> OHLCV Data Input</h3>
+                    <h3><i class="fas fa-chart-line"></i> Stock Trading Recommendations</h3>
+                    <p class="text-muted">AI-powered buy, sell, and hold recommendations for NEPSE stocks</p>
+                    
+                    <div class="text-center mb-3">
+                        <button type="button" class="btn btn-custom me-2" onclick="loadQuickRecommendations()">
+                            <i class="fas fa-bolt"></i> Quick Recommendations
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" onclick="loadRecommendations()">
+                            <i class="fas fa-sync-alt"></i> Deep Analysis (Slower)
+                        </button>
+                    </div>
+                    
+                    <div id="recommendationsLoading" class="text-center" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading recommendations...</span>
+                        </div>
+                        <p class="mt-2">Analyzing stocks...</p>
+                    </div>
+                    
+                    <div id="recommendationsSection" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="card border-success">
+                                    <div class="card-header bg-success text-white">
+                                        <h5 class="mb-0"><i class="fas fa-arrow-up"></i> BUY Recommendations</h5>
+                                    </div>
+                                    <div class="card-body" id="buyRecommendations">
+                                        <!-- Buy recommendations will be loaded here -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card border-warning">
+                                    <div class="card-header bg-warning text-white">
+                                        <h5 class="mb-0"><i class="fas fa-minus"></i> HOLD Recommendations</h5>
+                                    </div>
+                                    <div class="card-body" id="holdRecommendations">
+                                        <!-- Hold recommendations will be loaded here -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card border-danger">
+                                    <div class="card-header bg-danger text-white">
+                                        <h5 class="mb-0"><i class="fas fa-arrow-down"></i> SELL Recommendations</h5>
+                                    </div>
+                                    <div class="card-body" id="sellRecommendations">
+                                        <!-- Sell recommendations will be loaded here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Single Stock Prediction Section -->
+                <div class="data-input-section">
+                    <h3><i class="fas fa-search"></i> Single Stock Analysis</h3>
+                    <p class="text-muted">Enter a stock ticker to get detailed trading signal analysis</p>
+                    
+                    <div class="row">
+                        <div class="col-md-8">
+                            <input type="text" class="form-control" id="tickerInput" placeholder="Enter stock ticker (e.g., NABIL, NICA)" style="text-transform: uppercase;">
+                        </div>
+                        <div class="col-md-4">
+                            <button type="button" class="btn btn-custom w-100" onclick="predictTicker()">
+                                <i class="fas fa-search"></i> Analyze Stock
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="tickerLoading" class="text-center mt-3" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Analyzing ticker...</span>
+                        </div>
+                        <p class="mt-2">Fetching data and making prediction...</p>
+                    </div>
+                    
+                    <div id="tickerResult" class="mt-3" style="display: none;">
+                        <!-- Ticker result will be displayed here -->
+                    </div>
+                </div>
+
+                <!-- Manual Data Input Section -->
+                <div class="data-input-section">
+                    <h3><i class="fas fa-database"></i> Manual OHLCV Data Input</h3>
                     <p class="text-muted">Enter your candlestick data points. Minimum 1 point required, 20+ recommended for better accuracy.</p>
                     
                     <div id="dataPoints">
@@ -214,6 +299,178 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        async function loadQuickRecommendations() {
+            try {
+                document.getElementById('recommendationsLoading').style.display = 'block';
+                document.getElementById('recommendationsSection').style.display = 'none';
+                
+                const response = await fetch('/quick_recommendations');
+                const recommendations = await response.json();
+                
+                if (recommendations.error) {
+                    throw new Error(recommendations.error);
+                }
+                
+                displayRecommendations(recommendations);
+                
+            } catch (error) {
+                alert('Error loading quick recommendations: ' + error.message);
+            } finally {
+                document.getElementById('recommendationsLoading').style.display = 'none';
+            }
+        }
+
+        async function loadRecommendations() {
+            try {
+                document.getElementById('recommendationsLoading').style.display = 'block';
+                document.getElementById('recommendationsSection').style.display = 'none';
+                
+                const response = await fetch('/recommendations');
+                const recommendations = await response.json();
+                
+                if (recommendations.error) {
+                    throw new Error(recommendations.error);
+                }
+                
+                displayRecommendations(recommendations);
+                
+            } catch (error) {
+                alert('Error loading recommendations: ' + error.message);
+            } finally {
+                document.getElementById('recommendationsLoading').style.display = 'none';
+            }
+        }
+        
+        function displayRecommendations(recommendations) {
+            const buyRecommendations = recommendations.filter(r => r.action.toLowerCase() === 'buy');
+            const holdRecommendations = recommendations.filter(r => r.action.toLowerCase() === 'hold');
+            const sellRecommendations = recommendations.filter(r => r.action.toLowerCase() === 'sell');
+            
+            // Display buy recommendations
+            const buyHtml = buyRecommendations.slice(0, 10).map(stock => `
+                <div class="mb-2 p-2 border-start border-success border-3">
+                    <strong>${stock.ticker}</strong>
+                    <div class="small">Price: Rs. ${stock.latest_price}</div>
+                    <div class="small text-success">Confidence: ${stock.confidence}%</div>
+                    <div class="small text-muted">Change: ${stock.price_change}%</div>
+                </div>
+            `).join('');
+            document.getElementById('buyRecommendations').innerHTML = buyHtml || '<p class="text-muted">No buy recommendations</p>';
+            
+            // Display hold recommendations
+            const holdHtml = holdRecommendations.slice(0, 10).map(stock => `
+                <div class="mb-2 p-2 border-start border-warning border-3">
+                    <strong>${stock.ticker}</strong>
+                    <div class="small">Price: Rs. ${stock.latest_price}</div>
+                    <div class="small text-warning">Confidence: ${stock.confidence}%</div>
+                    <div class="small text-muted">Change: ${stock.price_change}%</div>
+                </div>
+            `).join('');
+            document.getElementById('holdRecommendations').innerHTML = holdHtml || '<p class="text-muted">No hold recommendations</p>';
+            
+            // Display sell recommendations
+            const sellHtml = sellRecommendations.slice(0, 10).map(stock => `
+                <div class="mb-2 p-2 border-start border-danger border-3">
+                    <strong>${stock.ticker}</strong>
+                    <div class="small">Price: Rs. ${stock.latest_price}</div>
+                    <div class="small text-danger">Confidence: ${stock.confidence}%</div>
+                    <div class="small text-muted">Change: ${stock.price_change}%</div>
+                </div>
+            `).join('');
+            document.getElementById('sellRecommendations').innerHTML = sellHtml || '<p class="text-muted">No sell recommendations</p>';
+            
+            document.getElementById('recommendationsSection').style.display = 'block';
+        }
+        
+        async function predictTicker() {
+            const ticker = document.getElementById('tickerInput').value.trim().toUpperCase();
+            
+            if (!ticker) {
+                alert('Please enter a stock ticker');
+                return;
+            }
+            
+            try {
+                document.getElementById('tickerLoading').style.display = 'block';
+                document.getElementById('tickerResult').style.display = 'none';
+                
+                const response = await fetch('/predict_for_ticker', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        ticker: ticker
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+                
+                displayTickerResult(result);
+                
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                document.getElementById('tickerLoading').style.display = 'none';
+            }
+        }
+        
+        function displayTickerResult(result) {
+            const signalClass = result.action.toLowerCase() === 'buy' ? 'signal-buy' : 
+                               result.action.toLowerCase() === 'sell' ? 'signal-sell' : 'signal-hold';
+            
+            const signalIcon = result.action.toLowerCase() === 'buy' ? 'fa-arrow-up' : 
+                              result.action.toLowerCase() === 'sell' ? 'fa-arrow-down' : 'fa-minus';
+            
+            const confidencePercentage = Math.round(result.confidence * 100);
+            
+            const resultContent = `
+                <div class="card">
+                    <div class="card-header ${signalClass}">
+                        <h5 class="mb-0 text-white">
+                            <i class="fas ${signalIcon}"></i> ${result.ticker} - ${result.action}
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Latest Price:</strong> Rs. ${result.latest_price}</p>
+                                <p><strong>Price Change:</strong> ${result.price_change ? result.price_change + '%' : 'N/A'}</p>
+                                <p><strong>Confidence:</strong> ${confidencePercentage}%</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Signal:</strong> ${result.signal} (0=Sell, 1=Hold, 2=Buy)</p>
+                                <p><strong>Data Points:</strong> ${result.data_points}</p>
+                                <p><strong>Explanation:</strong> ${result.explanation}</p>
+                            </div>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar ${signalClass}" role="progressbar" style="width: ${confidencePercentage}%" 
+                                 aria-valuenow="${confidencePercentage}" aria-valuemin="0" aria-valuemax="100">
+                                ${confidencePercentage}% Confidence
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('tickerResult').innerHTML = resultContent;
+            document.getElementById('tickerResult').style.display = 'block';
+        }
+        
+        // Add enter key support for ticker input
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('tickerInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    predictTicker();
+                }
+            });
+        });
+
         let dataPointCount = 0;
         
         function addDataPoint() {
