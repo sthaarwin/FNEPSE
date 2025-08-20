@@ -81,54 +81,76 @@ class TradingSignalPredictor:
         return df.fillna(0)
     
     def rule_based_signal(self, latest_data):
-        """Generate trading signal using rule-based approach"""
+        """Generate trading signal using improved rule-based approach"""
         if len(latest_data) < 5:
             return 1, "HOLD", "Insufficient data for analysis"
         
         latest = latest_data.iloc[-1]
         prev = latest_data.iloc[-2] if len(latest_data) > 1 else latest
         
-        # Price momentum
-        price_momentum = (latest['close'] - prev['close']) / prev['close']
+        # Multi-timeframe momentum
+        price_momentum_1d = (latest['close'] - prev['close']) / prev['close']
         
-        # Moving average signals
-        ma_signal = 1 if latest['close'] > latest['ma_20'] else 0
+        # Longer term momentum if enough data
+        if len(latest_data) >= 5:
+            price_momentum_5d = (latest['close'] - latest_data.iloc[-5]['close']) / latest_data.iloc[-5]['close']
+        else:
+            price_momentum_5d = price_momentum_1d
         
-        # RSI signals
-        rsi_oversold = latest['rsi'] < 30
-        rsi_overbought = latest['rsi'] > 70
+        # Moving average signals (multiple timeframes)
+        ma5_signal = latest['close'] > latest['ma_5']
+        ma20_signal = latest['close'] > latest['ma_20']
+        
+        # RSI signals (more nuanced)
+        rsi_oversold = latest['rsi'] < 35
+        rsi_overbought = latest['rsi'] > 65
+        rsi_neutral = 40 <= latest['rsi'] <= 60
         
         # MACD signals
         macd_bullish = latest['macd'] > latest['macd_signal']
+        macd_strong = abs(latest['macd'] - latest['macd_signal']) > 0.01
+        
+        # Volatility analysis
+        vol_low = latest['volatility'] < np.percentile(latest_data['volatility'], 50)
         
         # Volume analysis (if available)
         volume_surge = False
         if 'volume' in latest_data.columns and len(latest_data) > 5:
             avg_volume = latest_data['volume'].rolling(5).mean().iloc[-2]
-            volume_surge = latest['volume'] > 1.5 * avg_volume
+            volume_surge = latest['volume'] > 1.3 * avg_volume
         
-        # Decision logic
-        buy_signals = sum([
-            price_momentum > 0.02,  # 2% price increase
-            ma_signal,
-            rsi_oversold,
-            macd_bullish,
-            volume_surge
+        # Enhanced decision logic with scoring
+        buy_score = sum([
+            price_momentum_1d > 0.01,     # 1% daily momentum
+            price_momentum_5d > 0.03,     # 3% weekly momentum
+            ma5_signal and ma20_signal,   # Above both MAs
+            rsi_oversold or rsi_neutral,  # RSI not overbought
+            macd_bullish and macd_strong, # Strong MACD signal
+            vol_low,                      # Lower volatility
+            volume_surge                  # Volume confirmation
         ])
         
-        sell_signals = sum([
-            price_momentum < -0.02,  # 2% price decrease
-            not ma_signal,
-            rsi_overbought,
-            not macd_bullish
+        sell_score = sum([
+            price_momentum_1d < -0.01,    # -1% daily momentum
+            price_momentum_5d < -0.03,    # -3% weekly momentum
+            not ma5_signal or not ma20_signal,  # Below MAs
+            rsi_overbought,               # RSI overbought
+            not macd_bullish and macd_strong,   # Strong bearish MACD
+            vol_low,                      # Lower volatility
+            not volume_surge              # No volume support
         ])
         
-        if buy_signals >= 3:
-            return 2, "BUY", f"Strong buy signals: {buy_signals}/5"
-        elif sell_signals >= 3:
-            return 0, "SELL", f"Strong sell signals: {sell_signals}/5"
+        # More balanced thresholds
+        if buy_score >= 4:
+            return 2, "BUY", f"Strong buy signals: {buy_score}/7"
+        elif sell_score >= 4:
+            return 0, "SELL", f"Strong sell signals: {sell_score}/7"
+        elif buy_score >= 3 and sell_score <= 2:
+            return 2, "BUY", f"Moderate buy signals: {buy_score}/7"
+        elif sell_score >= 3 and buy_score <= 2:
+            return 0, "SELL", f"Moderate sell signals: {sell_score}/7"
         else:
-            return 1, "HOLD", f"Mixed signals - Buy: {buy_signals}, Sell: {sell_signals}"
+            return 1, "HOLD", f"Mixed signals - Buy: {buy_score}, Sell: {sell_score}"
     
     def predict_signal(self, ohlcv_data):
         """

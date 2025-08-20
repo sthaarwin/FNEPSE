@@ -9,3 +9,10 @@ pyyaml
 kagglehub
 keras
 seaborn
+imblearn
+flask
+requests
+urllib3
+wasmtime
+retrying
+setuptools
