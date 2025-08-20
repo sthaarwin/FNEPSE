@@ -1,4 +1,4 @@
-# Trading Signal Predictor Web App
+# FNEPSE
 
 A modern web interface for the AI-powered trading signal predictor. This web application provides an intuitive way to input OHLCV (Open, High, Low, Close, Volume) data and get trading signals.
 
